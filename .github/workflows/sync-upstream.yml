@@ -8,57 +8,38 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    env:
+      TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout your repo
         uses: actions/checkout@v3
         with:
-          persist-credentials: false  # Required for custom push setup
+          persist-credentials: false
 
-      - name: Set up Git user
+      - name: Configure Git
         run: |
           git config --global user.name "GitHub Action"
           git config --global user.email "action@github.com"
-
-      - name: Ensure we're on main branch
-        run: |
-          echo "Switching to main branch..."
-          git checkout main
-
-      - name: Add upstream safely
-        run: |
-          git remote remove upstream 2>/dev/null || true
           git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
-          echo "✓ Upstream remote added"
+          git fetch upstream
 
-      - name: Fetch upstream
+      - name: Remove all files except workflows
         run: |
-          git fetch upstream main
-          echo "✓ Fetched upstream"
+          find . -mindepth 1 -maxdepth 1 ! -name '.github' -exec rm -rf {} +
 
-      - name: Backup workflows
+      - name: Copy all files from upstream except workflows
         run: |
-          echo "Backing up workflows..."
-          mkdir -p .github/tmp-workflows
-          cp -r .github/workflows/* .github/tmp-workflows/ || echo "No workflows to back up"
+          git checkout upstream/main -- .
+          rm -f .github/workflows/*.yml
 
-      - name: Reset to upstream
+      - name: Restore your workflows
         run: |
-          git reset --hard upstream/main
-          git clean -fdx
-          echo "✓ Repo reset to match upstream/main"
+          git checkout HEAD -- .github/workflows
 
-      - name: Restore workflows
+      - name: Commit and force push
         run: |
-          mkdir -p .github/workflows
-          cp -r .github/tmp-workflows/* .github/workflows/ || echo "No workflows to restore"
-          echo "✓ Workflows restored"
-
-      - name: Push changes back to your fork
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
           git add .
-          git commit -m "Sync with upstream (preserving workflows)" || echo "No changes to commit"
+          git commit -m "Force sync from upstream except workflows" || echo "No changes to commit"
+          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
           git push origin main --force
