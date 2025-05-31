@@ -13,44 +13,51 @@ jobs:
       - name: Checkout your repo
         uses: actions/checkout@v3
         with:
-          persist-credentials: false  # We'll handle auth manually
+          persist-credentials: false
 
       - name: Set up Git
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
+          echo "Setting up Git identity..."
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
 
       - name: Add upstream remote
-        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
+        run: |
+          echo "Adding upstream remote..."
+          git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
+          echo "✓ Upstream remote added"
 
-      - name: Fetch upstream
-        run: git fetch upstream main
+      - name: Fetch upstream main
+        run: |
+          echo "Fetching upstream main branch..."
+          git fetch upstream main
+          echo "✓ Upstream main fetched"
 
       - name: Backup workflows
         run: |
+          echo "Backing up existing workflows..."
           mkdir -p .github/tmp-workflows
           cp -r .github/workflows/* .github/tmp-workflows/ || echo "No workflows to back up"
+          echo "✓ Workflows backed up"
 
-      - name: Reset to upstream
+      - name: Hard reset to upstream
         run: |
-          # Clean and reset to upstream
+          echo "Resetting repo to upstream/main..."
           git reset --hard upstream/main
           git clean -fdx
-          echo "Reset complete"
+          echo "✓ Repo reset to upstream"
 
       - name: Restore workflows
         run: |
+          echo "Restoring workflows..."
           mkdir -p .github/workflows
           cp -r .github/tmp-workflows/* .github/workflows/ || echo "No workflows to restore"
+          echo "✓ Workflows restored"
 
       - name: Commit and push changes
-        env:
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "Committing and pushing changes..."
           git add .
-          if ! git diff --cached --quiet; then
-            git commit -m "Sync with upstream except workflows"
-            git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
-            git push origin main
-          else
-            echo "No changes to commit"
+          git commit -m "Sync from upstream with workflows preserved" || echo "No changes to commit"
+          git push origin main
+          echo "✓ Sync complete"
