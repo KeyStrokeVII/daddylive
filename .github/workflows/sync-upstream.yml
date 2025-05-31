@@ -12,35 +12,30 @@ jobs:
       TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - name: Checkout your repo
+      - name: Checkout your repo with full history
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
-          persist-credentials: false
+          fetch-depth: 0  # Important to have full git history
 
-      - name: Configure Git
+      - name: Set up Git config
         run: |
-          git config --global user.name "GitHub Action"
-          git config --global user.email "action@github.com"
-          git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
-          git fetch upstream
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
 
-      - name: Remove all files except workflows
-        run: |
-          find . -mindepth 1 -maxdepth 1 ! -name '.github' -exec rm -rf {} +
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
 
-      - name: Copy all files from upstream except workflows
+      - name: Fetch upstream main branch
+        run: git fetch upstream main
+
+      - name: Checkout upstream files (excluding workflows)
         run: |
           git checkout upstream/main -- .
           rm -f .github/workflows/*.yml
 
-      - name: Restore your workflows
+      - name: Commit and push changes
         run: |
-          git checkout HEAD -- .github/workflows
-
-      - name: Commit and force push
-        run: |
-          git add .
-          git commit -m "Force sync from upstream except workflows" || echo "No changes to commit"
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
-          git push origin main --force
+          git add .
+          git commit -m "Sync from upstream (excluding workflows)" || echo "No changes to commit"
+          git push origin main || echo "Push failed, likely due to workflow permissions"
