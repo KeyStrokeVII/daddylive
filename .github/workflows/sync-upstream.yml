@@ -61,4 +61,4 @@ jobs:
           git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
           git add .
           git commit -m "Sync with upstream (preserving workflows)" || echo "No changes to commit"
-          git push origin main
+          git push origin main --force
