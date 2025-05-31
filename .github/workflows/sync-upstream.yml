@@ -9,19 +9,32 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout your repo (without credentials)
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false  # We'll handle pushing manually
 
-      - name: Configure Git
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
+
+      - name: Fetch upstream main branch
+        run: git fetch upstream main
+
+      - name: Replace repo content except workflows
+        run: |
+          # Delete all files and folders except the .github folder
+          find . -mindepth 1 -maxdepth 1 ! -name '.github' -exec rm -rf {} +
+
+          # Checkout all files from upstream main branch (overwrites current files except .github)
+          git checkout upstream/main -- .
+
+          # Restore only your workflow folder from your current branch (HEAD)
+          git checkout HEAD -- .github/workflows
+
+      - name: Commit and push changes
         run: |
           git config user.name "GitHub Action"
           git config user.email "action@github.com"
-
-      - name: Add Upstream Repo
-        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
-
-      - name: Fetch and Merge Upstream
-        run: |
-          git fetch upstream
-          git merge upstream/main --allow-unrelated-histories --no-edit || true
+          git add .
+          git diff --cached --quiet || git commit -m "Sync with upstream except workflows"
           git push origin main
