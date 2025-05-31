@@ -13,51 +13,52 @@ jobs:
       - name: Checkout your repo
         uses: actions/checkout@v3
         with:
-          persist-credentials: false
+          persist-credentials: false  # Required for custom push setup
 
-      - name: Set up Git
+      - name: Set up Git user
         run: |
-          echo "Setting up Git identity..."
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
 
-      - name: Add upstream remote
+      - name: Ensure we're on main branch
         run: |
-          echo "Adding upstream remote..."
+          echo "Switching to main branch..."
+          git checkout main
+
+      - name: Add upstream safely
+        run: |
+          git remote remove upstream 2>/dev/null || true
           git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
           echo "✓ Upstream remote added"
 
-      - name: Fetch upstream main
+      - name: Fetch upstream
         run: |
-          echo "Fetching upstream main branch..."
           git fetch upstream main
-          echo "✓ Upstream main fetched"
+          echo "✓ Fetched upstream"
 
       - name: Backup workflows
         run: |
-          echo "Backing up existing workflows..."
+          echo "Backing up workflows..."
           mkdir -p .github/tmp-workflows
           cp -r .github/workflows/* .github/tmp-workflows/ || echo "No workflows to back up"
-          echo "✓ Workflows backed up"
 
-      - name: Hard reset to upstream
+      - name: Reset to upstream
         run: |
-          echo "Resetting repo to upstream/main..."
           git reset --hard upstream/main
           git clean -fdx
-          echo "✓ Repo reset to upstream"
+          echo "✓ Repo reset to match upstream/main"
 
       - name: Restore workflows
         run: |
-          echo "Restoring workflows..."
           mkdir -p .github/workflows
           cp -r .github/tmp-workflows/* .github/workflows/ || echo "No workflows to restore"
           echo "✓ Workflows restored"
 
-      - name: Commit and push changes
+      - name: Push changes back to your fork
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Committing and pushing changes..."
+          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
           git add .
-          git commit -m "Sync from upstream with workflows preserved" || echo "No changes to commit"
+          git commit -m "Sync with upstream (preserving workflows)" || echo "No changes to commit"
           git push origin main
-          echo "✓ Sync complete"
