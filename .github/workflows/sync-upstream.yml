@@ -8,33 +8,47 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout your repo (without credentials)
+      - name: Checkout your repo
         uses: actions/checkout@v3
         with:
           persist-credentials: false  # We'll handle pushing manually
 
-      - name: Add upstream remote
-        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
-
-      - name: Fetch upstream main branch
-        run: git fetch upstream main
-
-      - name: Replace repo content except workflows
-        run: |
-          # Delete all files and folders except the .github folder
-          find . -mindepth 1 -maxdepth 1 ! -name '.github' -exec rm -rf {} +
-
-          # Checkout all files from upstream main branch (overwrites current files except .github)
-          git checkout upstream/main -- .
-
-          # Restore only your workflow folder from your current branch (HEAD)
-          git checkout HEAD -- .github/workflows
-
-      - name: Commit and push changes
+      - name: Configure Git
         run: |
           git config user.name "GitHub Action"
           git config user.email "action@github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
+
+      - name: Fetch upstream
+        run: git fetch upstream main
+
+      - name: Replace repo content except workflows (robust)
+        run: |
+          # Clean untracked files and directories
+          git clean -fdx
+
+          # Reset working tree to upstream/main
+          git reset --hard upstream/main
+
+          # Restore your workflows folder from current branch
+          git checkout HEAD -- .github/workflows
+
+          # Debug: show status
+          git status
+
+      - name: Commit and push changes (if any)
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
           git add .
-          git diff --cached --quiet || git commit -m "Sync with upstream except workflows"
-          git push origin main
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync with upstream except workflows"
+            git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.git
+            git push origin main
+          else
+            echo "No changes to commit"
