@@ -13,35 +13,37 @@ jobs:
       - name: Checkout your repo
         uses: actions/checkout@v3
         with:
-          persist-credentials: false  # We'll handle pushing manually
+          persist-credentials: false  # We'll handle auth manually
 
-      - name: Configure Git
+      - name: Set up Git
         run: |
-          git config user.name "GitHub Action"
-          git config user.email "action@github.com"
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
 
       - name: Add upstream remote
-        run: |
-          git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
+        run: git remote add upstream https://github.com/pigzillaaaaa/daddylive.git
 
       - name: Fetch upstream
         run: git fetch upstream main
 
-      - name: Replace repo content except workflows (robust)
+      - name: Backup workflows
         run: |
-          # Clean untracked files and directories
-          git clean -fdx
+          mkdir -p .github/tmp-workflows
+          cp -r .github/workflows/* .github/tmp-workflows/ || echo "No workflows to back up"
 
-          # Reset working tree to upstream/main
+      - name: Reset to upstream
+        run: |
+          # Clean and reset to upstream
           git reset --hard upstream/main
+          git clean -fdx
+          echo "Reset complete"
 
-          # Restore your workflows folder from current branch
-          git checkout HEAD -- .github/workflows
+      - name: Restore workflows
+        run: |
+          mkdir -p .github/workflows
+          cp -r .github/tmp-workflows/* .github/workflows/ || echo "No workflows to restore"
 
-          # Debug: show status
-          git status
-
-      - name: Commit and push changes (if any)
+      - name: Commit and push changes
         env:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
